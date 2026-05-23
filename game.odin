@@ -3,10 +3,15 @@ package game
 
 import rl "vendor:raylib"
 import la "core:math/linalg"
+import "core:fmt"
+import "core:strings"
 import "core:math/rand"
 
 
 Pair :: struct {x, y: i32}
+
+SCREEN_WIDTH :: 1280
+SCREEN_HEIGHT :: 720
 
 init_matrix :: proc(mat: ^[$M][$N]bool) {
   coinflip: [2]int = {0, 1}
@@ -54,12 +59,31 @@ neighbor_count :: proc(mat: ^[$M][$N]bool, pos: Pair) -> int {
   return cnt
 }
 
+neumann_neighbor_count :: proc(mat: ^[$M][$N]bool, pos: Pair) -> int {
+  cnt: int = 0
+  for i in -1..=1 {
+    for j in -1..=1 {
+      if i == 0 && j == 0 || i == 1 && j == 1 || i == -1 && j == 1 || i == 1 && j == -1 || i == -1 && j == -1 {
+        continue
+      }
 
-update_matrix :: proc(mat: ^[$M][$N]bool) {
+      x := (int(pos.x) + i + M) % M
+      y := (int(pos.y) + j + N) % N
+
+      if mat[x][y] {
+        cnt += 1
+      }
+    }
+  }
+  return cnt
+}
+
+
+update_matrix :: proc(mat: ^[$M][$N]bool, generation_cnt: ^i32) {
   changes: [dynamic]Pair
   for i in 0..<M {
     for j in 0..<N {
-      cnt := neighbor_count(mat, Pair{i32(i), i32(j)})
+      cnt := neumann_neighbor_count(mat, Pair{i32(i), i32(j)})
       if (mat[i][j] && (cnt < 2 || mat[i][j] && cnt > 3)) || (!mat[i][j] && cnt == 3) {
         append(&changes, Pair{i32(i), i32(j)})
       } 
@@ -69,6 +93,8 @@ update_matrix :: proc(mat: ^[$M][$N]bool) {
   for p in changes {
     mat[p.x][p.y] = !mat[p.x][p.y]
   }
+
+  generation_cnt^ += 1
 }
 
 key_listener :: proc(mat: ^[$M][$N]bool, pause: ^bool) {
@@ -82,13 +108,14 @@ key_listener :: proc(mat: ^[$M][$N]bool, pause: ^bool) {
 
 
 main :: proc() {
-  rl.InitWindow(1280, 720, "Game of Life in Odin")
+  rl.InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Game of Life in Odin")
   rl.SetTargetFPS(30)
   defer {
     rl.CloseWindow()
   }
 
   pause: bool = false
+  generation_cnt: i32 = 0
 
 
   cellmatrix: [128][72]bool
@@ -100,8 +127,11 @@ main :: proc() {
     rl.ClearBackground(rl.RAYWHITE)
     key_listener(&cellmatrix, &pause)
     draw_matrix(&cellmatrix)
+    gen_string := fmt.aprintf("Generation: %d", generation_cnt)
+    defer delete(gen_string)
+    rl.DrawText(strings.clone_to_cstring(gen_string), SCREEN_WIDTH - 250, 50, 30, rl.RED)
     if !pause {
-      update_matrix(&cellmatrix)
+      update_matrix(&cellmatrix, &generation_cnt)
     }
     rl.EndDrawing()
   }
