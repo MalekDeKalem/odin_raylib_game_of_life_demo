@@ -6,6 +6,7 @@ import la "core:math/linalg"
 import "core:fmt"
 import "core:strings"
 import "core:math/rand"
+import "core:time"
 
 
 Pair :: struct {x, y: i32}
@@ -102,6 +103,8 @@ key_listener :: proc(mat: ^[$M][$N]bool, pause: ^bool) {
     init_matrix(mat)
   } else if rl.IsKeyPressed(.SPACE) {
     pause^ = !pause^
+  } else if rl.IsKeyPressed(.Z) {
+    rl.TakeScreenshot(fmt.caprintf("screenshot%d.png", time.now()._nsec))
   }
 }
 
@@ -132,6 +135,9 @@ main :: proc() {
     rl.DrawText(strings.clone_to_cstring(gen_string), SCREEN_WIDTH - 250, 50, 30, rl.RED)
     if !pause {
       update_matrix(&cellmatrix, &generation_cnt)
+    }
+    if generation_cnt == 50 {
+      pause = true
     }
     rl.EndDrawing()
   }
